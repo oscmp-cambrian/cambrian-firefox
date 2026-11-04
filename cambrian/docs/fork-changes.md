@@ -9,9 +9,10 @@ Firefox 157.0, tag `FIREFOX_157_0_RELEASE`, upstream commit
 The first working host-override build is tagged
 `cambrian-157.0-host-overrides-1`, at commit
 `a18103a7e7d32b84f97d3afc36fe618e3e5245e6`. The implementation lives on
-`feature/host-overrides`; at that milestone, `master` contains the portable
-packaging baseline only. This document describes that implementation, including
-its deliberate prototype limitations.
+`feature/host-overrides`; at that milestone, `master` contained the portable
+packaging baseline only. The feature was subsequently included in `master`.
+The implementation map below describes that milestone; the SOCKS follow-up
+section records the subsequent extension.
 
 ## What the user gets
 
@@ -72,7 +73,8 @@ The related changes under `netwerk/protocol/http/` make address substitution
 effective even when Firefox could otherwise reuse or reroute a connection:
 
 - `nsHttpChannel` and `AlternateServices` suppress alternate routing and reject
-  unsupported mapped-host paths, including actual proxy connections.
+  unsupported mapped-host paths. The initial blanket proxy rejection is narrowed
+  to HTTP/HTTPS forward proxies by the SOCKS follow-up.
 - `nsHttpConnectionInfo` includes the override address and TLS mode in connection
   identity so different configurations cannot share the same pool key.
 - `nsHttpConnectionMgr` and `ConnectionEntry` prevent cross-origin coalescing
@@ -95,7 +97,9 @@ Acceptance requires all three to agree:
 
 1. The immutable override captured when the socket was created is insecure.
 2. The current exact-host override is still insecure with the same address.
-3. The actual TCP peer address matches that address.
+3. The socket-reported peer address matches that address: the actual TCP peer
+   for direct connections, or the requested tunnel destination for SOCKS. See
+   the proxy trust boundary in [configuration and limitations](host-overrides.md).
 
 `NSSSocketControl.{h,cpp}` owns the immutable snapshot and adds the address and
 TLS mode to the TLS peer/session identity. This separates ordinary, normal-mode,
@@ -162,3 +166,27 @@ been reproduced, and instantaneous cross-process revocation is not promised.
 The native package's `manifest.json` records its precise source revision and
 build configuration. Later documentation commits do not change the already
 published milestone archive.
+
+## SOCKS follow-up
+
+The prototype's blanket proxy rejection is narrowed to permit SOCKS in
+`nsHttpChannel::BeginConnect`. `nsSOCKSSocketInfo` in
+`netwerk/socket/nsSOCKSIOLayer.cpp` captures the mapped destination when the SOCKS
+layer is initialized, retains the original port, and sends a numeric IPv4
+request even when the proxy would normally resolve the hostname. Proxy selection,
+authentication, HTTP identity and TLS verification retain their existing paths.
+
+The local SOCKS fixture records protocol version, requested address and port,
+and forwards from a distinct loopback address. The browser matrix checks actual
+proxy traversal as well as original hostname identity, TLS behavior and mapping
+changes. See the test guide and the follow-up validation record for current
+results. The original milestone tables above remain historical evidence.
+
+Mapped SOCKS connections retain the network-state origin attributes used by
+HSTS storage, even when ordinary proxy connections use an unpartitioned
+identity. This keeps the TLS override gate aligned with learned HSTS policy
+and partitions the associated connections and sessions consistently. No global
+proxy-partitioning preference is changed.
+
+`cambrian/stage_package.py` includes `socks_proxy.py` in the portable test fixture
+so both source-checkout and extracted-bundle test commands remain usable.

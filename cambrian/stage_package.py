@@ -110,7 +110,7 @@ def main() -> int:
     if docs.is_dir():
         shutil.copytree(docs, bundle / "docs")
     tests = source_root / "cambrian" / "tests"
-    fixture_files = ("host_overrides_browser.py", "local_server.js", "README.md")
+    fixture_files = ("host_overrides_browser.py", "socks_proxy.py", "local_server.js", "README.md")
     if all((tests / name).is_file() for name in fixture_files):
         (bundle / "tests").mkdir()
         for name in fixture_files:

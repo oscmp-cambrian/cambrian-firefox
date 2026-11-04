@@ -8115,7 +8115,8 @@ nsresult nsHttpChannel::BeginConnect() {
   if (mProxyInfo) proxyInfo = do_QueryInterface(mProxyInfo);
 
   const bool hostOverride = LookupHostOverride(host).isSome();
-  if (hostOverride && proxyInfo && !proxyInfo->IsDirect()) {
+  if (hostOverride && proxyInfo && !proxyInfo->IsDirect() &&
+      !proxyInfo->IsSOCKS()) {
     LOG(("nsHttpChannel::BeginConnect refusing overridden proxied host %s\n",
          host.get()));
     return NS_ERROR_FAILURE;
@@ -8149,8 +8150,8 @@ nsresult nsHttpChannel::BeginConnect() {
   SetGlobalPrivacyControl();
 
   OriginAttributes originAttributes;
-  // Regular principal in case we have a proxy.
-  if (proxyInfo &&
+  // Mapped SOCKS connections must retain the HSTS network-state partition.
+  if (proxyInfo && !(hostOverride && proxyInfo->IsSOCKS()) &&
       !StaticPrefs::privacy_partition_network_state_connection_with_proxy()) {
     StoragePrincipalHelper::GetOriginAttributes(
         this, originAttributes, StoragePrincipalHelper::eRegularPrincipal);

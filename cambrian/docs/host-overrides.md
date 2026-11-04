@@ -1,6 +1,6 @@
 # Per-host IP overrides
 
-Firefox 157 supports an optional profile-local preference for directing a
+The Cambrian Firefox 157 fork supports an optional profile-local preference for directing a
 hostname to a fixed IPv4 address while keeping the URL hostname, HTTP `Host`,
 TLS SNI, and origin unchanged:
 
@@ -17,13 +17,15 @@ non-ASCII host text, duplicate entries, malformed entries, and malformed
 lists are rejected as a whole. Hosts absent from the list use ordinary DNS.
 
 HTTPS RR/SVCB and Alt-Svc are suppressed for an overridden host, including
-speculative connections. HTTP proxy, WebTransport, routed, and H3 connection
+speculative connections. HTTP/HTTPS proxy, WebTransport, routed, and H3 connection
 paths are rejected for overridden hosts. Existing HSTS processing remains in
 force. Without `|insecure`, certificate verification is unchanged. With it,
 only normally overridable certificate errors can be accepted, after existing
 HSTS/static pinning guards, and only when the immutable socket snapshot,
-current mapping, and actual TCP peer all match. This stores no certificate
-exceptions and uses separate TLS session keys for each address and TLS mode.
+current mapping, and socket-reported peer address all match. For SOCKS this is
+the requested tunnel destination; see the proxy trust boundary below. This
+stores no certificate exceptions and uses separate TLS session keys for each
+address and TLS mode.
 The response cache is unchanged. Use Ctrl+Shift+R (or `LOAD_BYPASS_CACHE`)
 when a fresh network response is required.
 
@@ -45,3 +47,31 @@ cached response can still be displayed after an edit; reload to exercise the
 new destination. Closing existing connections is asynchronous across processes,
 so in-flight requests may be interrupted rather than instantly migrated.
 Pinned-certificate mode and a management page are not implemented.
+
+## SOCKS proxies
+
+Mapped hosts support SOCKS4 and SOCKS5, with proxy DNS enabled or disabled. Keep
+using Firefox's existing proxy settings; there is no new override preference.
+The selected SOCKS proxy receives the configured IPv4 destination and original
+port. It receives a numeric address rather than resolving the mapped hostname.
+The browser retains the original URL, HTTP Host/authority, TLS SNI and certificate
+hostname, cookies and web origin. Unmapped hosts retain ordinary SOCKS behavior.
+
+The SOCKS connection captures its mapping when initialized. Preference changes
+retain the existing connection invalidation and TLS snapshot/session protections.
+SOCKS authentication and proxy selection continue through Firefox's existing
+implementation. HTTP and HTTPS forward proxies remain unsupported for mapped
+hosts; SOCKS support does not bypass the selected proxy to connect directly.
+
+For direct connections, the TLS peer check identifies the TCP peer. With SOCKS,
+the socket layer reports the requested tunnel destination; the proxy is trusted
+to forward to that destination. Strict TLS still verifies the origin certificate
+end to end. Explicit `|insecure` retains its existing error, HSTS, pinning,
+immutable-snapshot and current-mapping checks, with that tunnel destination as
+the peer address. It does not authenticate a server independently of the proxy.
+
+Mapped SOCKS connections retain the network-state origin attributes used by
+HSTS storage, even when ordinary proxy connections use an unpartitioned
+identity. This keeps the TLS override gate aligned with learned HSTS policy
+and partitions the associated connections and sessions consistently. No global
+proxy-partitioning preference is changed.

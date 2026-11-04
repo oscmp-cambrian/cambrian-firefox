@@ -7,6 +7,7 @@
 #include "mozilla/Components.h"
 #include "mozilla/Logging.h"
 #include "mozilla/net/DNS.h"
+#include "mozilla/net/HostOverride.h"
 #include "nsCRT.h"
 #include "nsICancelable.h"
 #include "nsIDNSListener.h"
@@ -208,6 +209,7 @@ class nsSOCKSSocketInfo : public nsIDNSListener {
   NetAddr mInternalProxyAddr;
   NetAddr mExternalProxyAddr;
   NetAddr mDestinationAddr;
+  mozilla::Maybe<NetAddr> mDestinationOverride;
   PRIntervalTime mTimeout{PR_INTERVAL_NO_TIMEOUT};
   nsCString mProxyUsername;  // Cache, from mProxy
 };
@@ -346,6 +348,13 @@ void nsSOCKSSocketInfo::Init(int32_t version, int32_t family,
   mProxy = proxy;
   mDestinationHost = host;
   mFlags = flags;
+  if (auto override = LookupHostOverride(mDestinationHost)) {
+    NetAddr address;
+    if (NS_SUCCEEDED(address.InitFromString(override->mAddress))) {
+      mDestinationOverride = mozilla::Some(address);
+      mFlags &= ~nsISocketProvider::PROXY_RESOLVES_HOST;
+    }
+  }
   mTlsFlags = tlsFlags;
   mProxy->GetUsername(mProxyUsername);  // cache
 }
@@ -361,7 +370,8 @@ void nsSOCKSSocketInfo::GetDestinationAddr(NetAddr& aDestinationAddr) {
 }
 
 void nsSOCKSSocketInfo::SetDestinationAddr(const NetAddr& aDestinationAddr) {
-  mDestinationAddr = aDestinationAddr;
+  mDestinationAddr = mDestinationOverride.valueOr(aDestinationAddr);
+  mDestinationAddr.inet.port = aDestinationAddr.inet.port;
 }
 
 // There needs to be a means of distinguishing between connection errors

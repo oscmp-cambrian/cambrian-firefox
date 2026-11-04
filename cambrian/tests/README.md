@@ -90,3 +90,48 @@ this change affects certificate exceptions and resumed sessions. Record command
 exit status, test summaries, source revision and JSON/log evidence. An optional
 human/owner GUI check can confirm label layout and interactive navigation; it is
 not an integration gate once the automated browser checks pass.
+
+## SOCKS regression matrix
+
+The same real-browser harness accepts `--socks-version 4` or `--socks-version 5`
+and `--socks-remote-dns`. It starts a loopback-only SOCKS fixture with an allowlist
+of fixture ports. Mapped requests must name the configured numeric IPv4 target;
+the fixture never resolves `.invalid` names. It forwards from `127.0.0.3`, so
+server-side evidence distinguishes proxy traversal from a direct connection.
+The report includes SOCKS requests, destination type/address/port, selected
+version and remote-DNS mode. It rejects mapped hostname-resolution requests
+while the mapping is active and checks that a stopped proxy cannot be bypassed.
+
+Required Agent/CI checks: both SOCKS versions, both DNS settings and both socket
+process settings, in addition to the unchanged direct matrices and native tests.
+Use a separate report file for every invocation:
+
+```sh
+for process in on off; do
+  for version in 4 5; do
+    python3 cambrian/tests/host_overrides_browser.py \
+      --firefox "$MOZ_OBJDIR/dist/bin/firefox" --socket-process "$process" \
+      --socks-version "$version" --report "/tmp/socks-$version-local-$process.json"
+    python3 cambrian/tests/host_overrides_browser.py \
+      --firefox "$MOZ_OBJDIR/dist/bin/firefox" --socket-process "$process" \
+      --socks-version "$version" --socks-remote-dns \
+      --report "/tmp/socks-$version-remote-$process.json"
+  done
+done
+```
+
+Also exercise SOCKS5 remote DNS with `--socks-proxy-host ::1` and with
+`--socks-pac`, separately. These use an IPv6 proxy listener and a generated local
+PAC file respectively. All fixtures and profiles are temporary; the real browser
+keeps `acceptInsecureCerts=false`. The original HTTP-proxy rejection/control
+checks remain in the matrix, and the harness restores SOCKS afterward.
+
+Success requires a zero exit status and `passed:true`, including destination,
+Host/SNI/origin, strict and explicitly insecure TLS, HSTS, mapping edits,
+resumption, HTTP/2, WS/WSS, ordinary hosts and proxy-traversal assertions.
+Inspect the report and resolver logs; a successful page load alone is insufficient.
+
+Run the SOCKS acceptance matrix with the normal
+`privacy.partition.network_state.connection_with_proxy` default. Do not turn
+that preference on to make the HSTS assertion pass: mapped SOCKS connections
+must retain the correct HSTS partition through the implementation itself.

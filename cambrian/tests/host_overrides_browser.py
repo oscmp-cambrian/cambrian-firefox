@@ -17,6 +17,10 @@ import subprocess
 import tempfile
 import time
 import glob
+if __package__:
+    from .socks_proxy import SocksProxy
+else:
+    from socks_proxy import SocksProxy
 
 
 class Marionette:
@@ -134,6 +138,10 @@ def content(m, script, args=None):
 
 def check_result(check, records, baseline):
     result_obj = check.get("result") if isinstance(check.get("result"), dict) else {}
+    if check["name"] == "socks-unavailable":
+        return result_obj.get("ok") is False and not any(r.get("path") == "/proxy-unavailable-proof" for r in records)
+    if check["name"] == "socks-route":
+        return result_obj.get("viaProxy") and result_obj.get("mappedIPRequested") and not result_obj.get("mappedHostnameRequests")
     if check["name"] == "process-path":
         return bool(result_obj.get("launched")) == (check["expected"] == "on") and (check["expected"] != "on" or result_obj.get("pid", 0) > 0)
     if check["name"] == "untrusted-navigation-insecure":
@@ -248,6 +256,10 @@ def main():
     parser.add_argument("--report", required=True)
     parser.add_argument("--baseline", action="store_true", help="expect mapped cases to fail")
     parser.add_argument("--socket-process", choices=("on", "off"), default="on")
+    parser.add_argument("--socks-version", type=int, choices=(4, 5))
+    parser.add_argument("--socks-remote-dns", action="store_true")
+    parser.add_argument("--socks-proxy-host", choices=("127.0.0.1", "::1"), default="127.0.0.1")
+    parser.add_argument("--socks-pac", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     results = {"firefox": args.firefox, "overrides": args.overrides, "baseline": args.baseline, "checks": [], "setup": {}}
@@ -263,6 +275,12 @@ def main():
                 raise RuntimeError(server.stderr.read())
             ports = json.loads(line)
             results["setup"]["ports"] = ports
+            proxy = SocksProxy(ports.values(), args.socks_proxy_host) if args.socks_version else None
+            removed_mapping_requests = []
+            results["setup"]["socksVersion"] = args.socks_version
+            results["setup"]["socksRemoteDNS"] = args.socks_remote_dns
+            results["setup"]["socksProxyHost"] = args.socks_proxy_host
+            results["setup"]["socksPAC"] = args.socks_pac
             profile = temp / "profile"
             profile.mkdir()
             initial_overrides = args.overrides
@@ -283,6 +301,9 @@ def main():
                 session_caps = marionette.command("WebDriver:NewSession", {"capabilities": {"alwaysMatch": {"acceptInsecureCerts": False}}})
                 results["setup"]["acceptInsecureCerts"] = session_caps.get("capabilities", {}).get("acceptInsecureCerts")
                 chrome_import(marionette, temp / "ca.crt")
+                marionette.command("Marionette:SetContext", {"value": "chrome"})
+                results["setup"]["proxyConnectionPartitioning"] = content(marionette, "return Components.classes['@mozilla.org/preferences-service;1'].getService(Components.interfaces.nsIPrefBranch).getBoolPref('privacy.partition.network_state.connection_with_proxy');")
+                marionette.command("Marionette:SetContext", {"value": "content"})
                 if not args.baseline:
                     chrome_int_pref(marionette, "network.trr.mode", 3)
                     marionette.command("Marionette:SetContext", {"value": "chrome"})
@@ -298,6 +319,24 @@ def main():
                     results["checks"].append({"name": "dns-records", "result": dns_result})
                     marionette.command("Marionette:SetContext", {"value": "content"})
                     chrome_int_pref(marionette, "network.trr.mode", 0)
+                def enable_socks():
+                    if not proxy:
+                        return
+                    chrome_bool_pref(marionette, "network.proxy.allow_hijacking_localhost", True)
+                    chrome_pref(marionette, "network.proxy.no_proxies_on", "")
+                    chrome_pref(marionette, "network.proxy.socks", args.socks_proxy_host)
+                    chrome_int_pref(marionette, "network.proxy.socks_port", proxy.port)
+                    chrome_int_pref(marionette, "network.proxy.socks_version", args.socks_version)
+                    chrome_bool_pref(marionette, "network.proxy.socks_remote_dns", args.socks_remote_dns)
+                    chrome_bool_pref(marionette, "network.proxy.socks5_remote_dns", args.socks_remote_dns)
+                    if args.socks_pac:
+                        kind = "SOCKS5" if args.socks_version == 5 else "SOCKS4"
+                        host = f"[{args.socks_proxy_host}]" if ":" in args.socks_proxy_host else args.socks_proxy_host
+                        pac = profile / "socks.pac"
+                        pac.write_text("function FindProxyForURL(url, host) { return " + json.dumps(f"{kind} {host}:{proxy.port}") + "; }")
+                        chrome_pref(marionette, "network.proxy.autoconfig_url", pac.as_uri())
+                    chrome_int_pref(marionette, "network.proxy.type", 2 if args.socks_pac else 1)
+                enable_socks()
                 checks = [
                     ("mapped-http", f"http://dev-test.invalid:{ports['http']}/json"),
                     ("mapped-https", f"https://dev-test.invalid:{ports['https']}/json"),
@@ -352,7 +391,10 @@ def main():
                         chrome_pref(marionette, "network.host_overrides", "dev-test.invalid=127.0.0.1,dns-proof.invalid=127.0.0.2")
                         results["checks"].append({"name": "mapping-change-local", "url": mapped_http, "result": probe(marionette, mapped_http)})
                         chrome_pref(marionette, "network.host_overrides", "dns-proof.invalid=127.0.0.2")
+                        request_start = len(proxy.records) if proxy else 0
                         results["checks"].append({"name": "mapping-removed", "url": mapped_http, "result": probe(marionette, mapped_http)})
+                        if proxy:
+                            removed_mapping_requests.extend(proxy.records[request_start:])
                         chrome_pref(marionette, "network.host_overrides", "dev-test.invalid=127.0.0.2,dns-proof.invalid=127.0.0.2")
                         results["checks"].append({"name": "mapping-readded", "url": mapped_http, "result": probe(marionette, mapped_http)})
                     except Exception as exc:
@@ -377,6 +419,10 @@ def main():
                         chrome_int_pref(marionette, "network.proxy.type", 0)
                     except Exception as exc:
                         results["checks"].append({"name": "proxy-rejection", "url": mapped_http, "result": {"ok": False, "error": str(exc)}})
+                    if proxy:
+                        chrome_pref(marionette, "network.proxy.http", "")
+                        chrome_int_pref(marionette, "network.proxy.http_port", 0)
+                        enable_socks()
                     try:
                         chrome_pref(marionette, "network.host_overrides", "dev-test.invalid=127.0.0.2|insecure,dns-proof.invalid=127.0.0.2")
                         resumption_url = f"https://dev-test.invalid:{ports['badHttps']}/resumption"
@@ -414,6 +460,10 @@ def main():
                         results["checks"].append({"name": "cors-matrix", "url": "same-origin-and-cross-origin", "result": cors_result})
                     except Exception as exc:
                         results["checks"].extend([{"name": "cookie-persistence", "url": "", "result": {"ok": False, "error": str(exc)}}, {"name": "cors-matrix", "url": "", "result": {"ok": False, "error": str(exc)}}])
+                if proxy:
+                    chrome_pref(marionette, "network.host_overrides", "dev-test.invalid=127.0.0.1")
+                    proxy.close()
+                    results["checks"].append({"name":"socks-unavailable", "result":probe(marionette, f"http://dev-test.invalid:{ports['http']}/proxy-unavailable-proof")})
                 if not args.baseline:
                     marionette.command("Marionette:SetContext", {"value": "chrome"})
                     process_info = content(marionette, "const io = Components.classes['@mozilla.org/network/io-service;1'].getService(Components.interfaces.nsIIOService); return {launched:io.socketProcessLaunched,pid:io.socketProcessId};")
@@ -429,6 +479,17 @@ def main():
             server.terminate()
             server.wait(timeout=5)
             results["setup"]["server"] = json.loads(server_report.read_text())
+            if proxy:
+                if not proxy.stopping.is_set():
+                    proxy.close()
+                results["setup"]["socksRequests"] = proxy.records
+                mapped = [r for r in results["setup"]["server"]["records"] if r.get("host", "").startswith("dev-test.invalid:") and r.get("localAddress") == "127.0.0.2"]
+                results["checks"].append({"name": "socks-route", "result": {
+                    "viaProxy": bool(mapped) and all(r.get("remoteAddress") == "127.0.0.3" for r in mapped),
+                    "mappedIPRequested": any(r.get("connected") and r["host"] == "127.0.0.2" and not r["domain"] and r["version"] == args.socks_version for r in proxy.records),
+                    "mappedHostnameRequests": [r for r in proxy.records if r["domain"] and r["host"] in {"dev-test.invalid", "hsts-test.invalid"} and all(r is not removed for removed in removed_mapping_requests)],
+                    "requests": len(proxy.records),
+                }})
             if not args.baseline:
                 lines = [line for file in log_files for line in Path(file).read_text(errors="replace").splitlines() if "dns-proof.invalid" in line]
                 results["checks"].append({"name": "dns-log", "result": {
@@ -440,6 +501,8 @@ def main():
             for index, log_file in enumerate(log_files):
                 shutil.copy2(log_file, Path(args.report).with_suffix(f".{index}.mozlog"))
         finally:
+            if "proxy" in locals() and proxy and not proxy.stopping.is_set():
+                proxy.close()
             server.terminate()
             server.wait(timeout=5)
     Path(args.report).write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
