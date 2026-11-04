@@ -23,15 +23,17 @@ image's unprivileged `builder` user; a short root `chown` prepares copied source
 Use trusted owner-controlled source jobs. Do not expose Harbor credentials or
 this Docker-capable worker to untrusted/fork Jenkinsfiles. Change-request jobs
 and automatic branch indexing do not publish or compile; reviewed builds must
-be manually started. Build #1 always registers parameters and exits, including when job parameters
-were provisioned beforehand. Publication requires a subsequent manual build. No shared-library pin, Dokku deployment,
-production bootstrap, or new registry scanning policy is introduced.
+be manually started. Build #1 always registers parameters and exits, including
+when job parameters were provisioned beforehand. Publication requires a
+subsequent manual build. No shared-library pin, Dokku deployment, production
+bootstrap, or new registry scanning policy is introduced.
 
 Allow several GB for the builder, plus source, Git checkout, temporary source
-transfer and native object output. For the first setup of both jobs, budget 80–100 GB free across the controller,
+transfer and native object output. For the first setup of both jobs, budget
+80–100 GB free across the controller,
 worker, Docker build cache and registry; fewer files are needed on subsequent
-browser-only runs. Use a worker with 4 CPUs and adequate RAM/swap; tune `BUILD_JOBS` for the host. Builds can take over
-an hour. The six-hour timeout includes compilation and tests. The compiler
+browser-only runs. Use a worker with 4 CPUs and adequate RAM/swap; tune
+`BUILD_JOBS` for the host. Builds can take over an hour. The six-hour timeout includes compilation and tests. The compiler
 container and its source/object data are removed on completion/failure; no
 unrelated images, volumes, databases or workspaces are pruned. Jenkins keeps
 10 build logs and artifacts from the last 3 builds. Docker layer caches and
@@ -56,7 +58,8 @@ IDs are required.** Parameters use the Cambrian registry defaults:
 
 Registry/repository, credential selectors and the digest can also have explicit
 job environment defaults; build parameters take precedence. Environment defaults
-must be configured in Jenkins, not merely exported in an operator shell. Jenkins exposes queued parameters in the build environment, so standalone jobs
+must be configured in Jenkins, not merely exported in an operator shell. Jenkins
+exposes queued parameters in the build environment, so standalone jobs
 carry their selected registry, repository, credential IDs and digest forward
 when the form is refreshed. Build toggles and parallelism return to their source
 defaults. Inspect the form and effective values after job recreation or a source
@@ -78,7 +81,8 @@ No production credentials or private lab CA are baked into the builder image.
    revision, using a source archive (ignored files/secrets are not Docker context).
 2. Download `builder-image.txt` from Jenkins artifacts. It contains the repository
    and immutable digest. The tag is `linux-x86_64-<full source SHA>-<build number>`;
-   configure Harbor immutable-tag retention to protect published builder versions.
+   keep the referenced digest in Harbor while jobs use it. Tags describe versions;
+   consumers always select the digest.
 3. Start the browser job with the same registry/repository and the `sha256:...`
    digest. It pulls the prebuilt image, verifies compatibility and builds native
    C++/Rust from the selected branch. It never runs `docker build` or `apt`.
