@@ -141,6 +141,16 @@ baseline:
 git diff 6b8dbe7a43fe..a18103a7e7d3
 ```
 
+## Reusable Jenkins build environment
+
+`Jenkinsfile.build-image`, `Jenkinsfile`, and `cambrian/ci/` add native Linux
+artifact delivery using the existing Docker worker and Harbor credentials.
+The image producer installs dependencies once; the browser consumer requires an
+immutable image digest, checks source/toolchain compatibility, compiles from
+source, runs native and packaged-browser tests, and archives the portable build.
+See [setup, configuration and validation](jenkins-builds.md). This delivery path
+does not deploy a web app or require Dokku or a new shared-library release.
+
 ## Evidence and boundaries
 
 The [validation record](host-overrides-validation.md) lists completed native,
@@ -162,13 +172,3 @@ been reproduced, and instantaneous cross-process revocation is not promised.
 The native package's `manifest.json` records its precise source revision and
 build configuration. Later documentation commits do not change the already
 published milestone archive.
-
-## Reusable Jenkins build environment
-
-`Jenkinsfile.build-image`, `Jenkinsfile`, and `cambrian/ci/` add native Linux
-artifact delivery using the existing Docker worker and Harbor credentials.
-The image producer installs dependencies once; the browser consumer requires an
-immutable image digest, checks source/toolchain compatibility, compiles from
-source, runs native and packaged-browser tests, and archives the portable build.
-See [setup, configuration and validation](jenkins-builds.md). This delivery path
-does not deploy a web app or require Dokku or a new shared-library release.

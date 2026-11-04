@@ -1,10 +1,12 @@
 # Cambrian fork maintenance
 
 For every fork change, update `cambrian/README.md` and the relevant documents in
-`cambrian/docs/` alongside the implementation and tests. Describe behavior,
-configuration, supported paths, limitations and reproducible validation. Update
-`cambrian/tests/README.md` when tests change. Separate historical evidence from
-current checks. Review documentation before declaring a change ready.
+`cambrian/docs/` alongside the implementation and tests. Describe resulting
+behavior, configuration, supported and unsupported paths, and reproducible
+validation. Keep `cambrian/tests/README.md` current when tests change. Preserve
+historical validation records, and distinguish completed checks from pending
+checks; never present old build evidence as proof of a new change. Include this
+documentation review before considering any change ready for integration.
 
 # Global instructions
 Limit the amount of comments you put in the code to a strict minimum. You should almost never add comments, except sometimes on non-trivial code, function definitions if the arguments aren't self-explanatory, and class definitions and their members.

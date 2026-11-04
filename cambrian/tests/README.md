@@ -42,6 +42,17 @@ by rejection after switching to normal mode. Each negative TLS check requires a
 new server-side handshake error. Mapping changes/removal, a live proxy control,
 and the normal/insecure/ordinary toolbar indicators are also checked.
 
+## Container and Jenkins build checks
+
+Run `python3 cambrian/tests/test_ci.py` for builder compatibility checks and
+`bash -n cambrian/ci/*.sh` for shell parsing. The actual Jenkins jobs must also be
+exercised: publish the builder to a lab registry, copy its digest into the Firefox
+job, and verify native tests, packaged-browser reports, archive and checksum.
+See [Jenkins build validation](../docs/jenkins-builds.md). Source changes outside
+the toolchain input set reuse the image; changed or missing inputs fail before
+compilation and request a new image. The consumer also runs SOCKS matrices when
+the SOCKS fixture is present after that independent feature is integrated.
+
 ## Manual fixture
 
 To keep a server running for interactive use, import this module and generate
@@ -90,14 +101,3 @@ this change affects certificate exceptions and resumed sessions. Record command
 exit status, test summaries, source revision and JSON/log evidence. An optional
 human/owner GUI check can confirm label layout and interactive navigation; it is
 not an integration gate once the automated browser checks pass.
-
-## Container and Jenkins build checks
-
-Run `python3 cambrian/tests/test_ci.py` for builder compatibility checks and
-`bash -n cambrian/ci/*.sh` for shell parsing. The actual Jenkins jobs must also be
-exercised: publish the builder to a lab registry, copy its digest into the Firefox
-job, and verify native tests, packaged-browser reports, archive and checksum.
-See [Jenkins build validation](../docs/jenkins-builds.md). Source changes outside
-the toolchain input set reuse the image; changed or missing inputs fail before
-compilation and request a new image. The consumer also runs SOCKS matrices when
-the SOCKS fixture is present after that independent feature is integrated.
