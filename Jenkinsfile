@@ -1,0 +1,5 @@
+node('docker-build-agent') {
+  checkout scm
+  def build = load 'cambrian/ci/pipeline.groovy'
+  build.run('firefox')
+}
