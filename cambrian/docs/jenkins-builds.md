@@ -105,8 +105,10 @@ The compatibility manifest hashes bootstrap, Mach/mozbuild, taskcluster,
 configure inputs, Python site/dependency definitions and the CI image definition. Ordinary browser C++/JS edits reuse
 the image. A matching source location `/build/source` preserves warmed Mach
 virtualenv paths. A change to those inputs stops compilation with instructions
-to publish a new builder. Rebuild periodically for OS/toolchain security updates,
-then select and verify the new digest. Old digest selection is an explicit
+to publish a new builder. For OS security refreshes, review and update the pinned Ubuntu digest, which
+invalidates the system-package layer, then rebuild and verify the new digest.
+Review toolchain updates through the corresponding source inputs. Rebuilding
+unchanged inputs can reuse Docker cache and is not an OS security refresh. Old digest selection is an explicit
 rollback of build tooling, not an application deployment rollback. Normal builds
 may still access upstream package services when Mach requires additional data;
 this is not an offline/reproducible-build guarantee.
