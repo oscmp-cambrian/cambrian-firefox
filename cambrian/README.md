@@ -40,21 +40,25 @@ dev-test.invalid=127.0.0.2|insecure
 The URL, Host header, TLS SNI, cookies, and origin retain the hostname. Entries
 are comma-separated, IPv4-only, exact hosts, and apply to every port. A blank
 preference removes overrides. Edits abort pooled connections and clear network
-and TLS caches. HSTS and pinning restrictions remain enforced. Proxy,
-WebTransport, HTTP/3 and alternate routing are unsupported for mapped hosts.
+and TLS caches. HSTS and pinning restrictions remain enforced. SOCKS4 and SOCKS5
+proxies carry the mapped IPv4 destination, including when proxy DNS is enabled. HTTP/HTTPS proxies, WebTransport, HTTP/3 and alternate
+routing remain unsupported for mapped hosts.
 Read [configuration and limitations](docs/host-overrides.md), the
 [source investigation](docs/host-overrides-investigation.md), and
 [validation/change summary](docs/host-overrides-validation.md). The bundled
-`tests/` directory contains reproducible loopback browser tests.
+`tests/` directory contains reproducible loopback browser tests and the SOCKS
+proxy fixture used by the regression matrix.
 
 ## Build from source
 
-Use a full Firefox checkout at this repository revision. The workspace's
-sparse packaging worktree contains only `cambrian/`; it is not a build source
-checkout. A reproducible command sequence is:
+Use a full Firefox checkout at the intended revision; copying only `cambrian/`
+is insufficient. Install the Ubuntu build dependencies and a compatible Rust
+toolchain before running the no-system-changes wrapper. Its fresh-machine Rust
+setup gap is tracked in [issue #3](https://github.com/oscmp-cambrian/cambrian-firefox/issues/3).
+A command sequence after those prerequisites is:
 
 ```sh
-git clone --branch feature/host-overrides https://github.com/rileymat-codex/cambrian-firefox.git
+git clone --branch master https://github.com/oscmp-cambrian/cambrian-firefox.git
 cd cambrian-firefox
 git rev-parse HEAD
 export MOZ_OBJDIR="$HOME/builds/cambrian-firefox-157.0/objdir"
@@ -91,3 +95,10 @@ then inspect the screenshot and exit status. GUI execution is optional and
 requires a desktop session; native Linux GTK and related shared libraries are
 required because the archive is not fully static. No CI or build result is
 implied by this source document.
+
+## Maintaining this fork
+
+Every implementation change must update this README and the relevant documents
+under `cambrian/docs/`, including behavior, limitations and validation. Test changes
+must also update `cambrian/tests/README.md`. See the standing instructions in the
+repository's `AGENTS.md` and the [implementation map](docs/fork-changes.md).

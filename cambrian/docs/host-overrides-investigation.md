@@ -126,3 +126,29 @@ HTTPS/1.1, HTTP/2, WS/WSS, redirects, same-origin/CORS behavior, mapping changes
 and rejected ordinary/normal-mode invalid certificates. Resolver logs must show
 synthetic completion and no native/TRR lookup for active hosts. Include an
 Alt-Svc trap destination and run with socket-process networking enabled.
+
+## SOCKS follow-up investigation
+
+The original direct-only decision above is historical. SOCKS proxy-side DNS can
+skip `nsHostResolver::ResolveHost`: `nsSocketTransport::ResolveHost` supplies an
+empty placeholder address and the SOCKS layer normally sends the hostname.
+Consequently, merely removing the HTTP channel's proxy rejection is insufficient.
+The follow-up captures the override in `nsSOCKSSocketInfo::Init`, substitutes the
+mapped destination in `SetDestinationAddr`, and clears `PROXY_RESOLVES_HOST` for
+that captured mapping. SOCKS4/5 then encode its numeric address with the unchanged
+port while the upper layers retain the origin hostname.
+
+`nsSOCKSIOLayerGetPeerName` reports the tunnel destination, which is the address
+used by the existing TLS override gate. This is not independent evidence of the
+proxy's physical outbound TCP peer; see the SOCKS trust boundary in
+`host-overrides.md`. No global certificate bypass or stored certificate exception
+is introduced.
+
+The first SOCKS browser run exposed an additional interaction in
+`nsHttpChannel::BeginConnect`: the default proxy connection path selects
+regular-principal origin attributes, while HSTS learning uses network-state
+attributes. The TLS gate then misses partitioned HSTS state. The scoped fix
+keeps network-state attributes for mapped SOCKS connections; ordinary proxy
+connections retain their existing policy. A diagnostic run with the existing
+proxy-partitioning preference enabled confirmed this cause, but acceptance
+checks use the normal preference defaults and the code fix.

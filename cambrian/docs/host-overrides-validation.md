@@ -1,7 +1,7 @@
 # Prototype validation and change summary
 
 Baseline: Firefox 157.0, upstream `FIREFOX_157_0_RELEASE`
-(`fdd757a2e09c9471cddf383e64e631e4ce178499`). Work is on
+(`fdd757a2e09c9471cddf383e64e631e4ce178499`). That increment was developed on
 `feature/host-overrides`; the archive's `manifest.json` records its exact source
 revision, compiler versions and actual verification mozconfig.
 
@@ -73,3 +73,65 @@ IPv4, exact ASCII hostnames, all ports and direct desktop Linux connections are
 the initial scope. HTTP/3, Alt-Svc, HTTPS/SVCB routing, proxies and WebTransport
 cannot bypass a mapping. Pinned-certificate mode and a management page remain
 future work. Response-cache contents are retained; use a cache-bypassing reload.
+
+## SOCKS follow-up (2026-11-04)
+
+The unchanged `master` revision `95fe0d05ee1edeac968b659a2bcf825fe3e00b9d`
+built successfully in a fresh Ubuntu 24.04 x86_64 build environment, with
+Clang 22.1.8, Rust 1.99.1 and the existing test-enabled mozconfig. The original
+browser matrix passed all 33 checks with the socket process enabled. A SOCKS5
+proxy-DNS reproduction failed at mapped navigation; the HTTP log explicitly
+recorded `nsHttpChannel::BeginConnect refusing overridden proxied host`.
+
+The no-system-changes bootstrap wrapper did not install Rust on the fresh
+machine. Rust was provisioned separately without changing source; this is
+tracked in [issue #3](https://github.com/oscmp-cambrian/cambrian-firefox/issues/3).
+The initial two-job build was intentionally stopped and resumed with four jobs.
+The successful build log is `build-baseline-final.log`.
+
+The follow-up permits SOCKS4/5, captures the mapped destination in the SOCKS
+layer, and retains network-state origin attributes for mapped SOCKS connections
+so the TLS override gate sees the same HSTS partition as header processing.
+The first SOCKS matrix exposed that partition mismatch; the corrected matrix
+passes with the normal proxy-partitioning preference set to its default false.
+No global privacy or certificate setting was weakened to obtain these results.
+
+| Required check (Agent) | Result | Evidence under `/workspace/firefox-build/logs/` |
+| --- | --- | --- |
+| Patched native build | Passed, zero compiler warnings | `build-socks-hsts.log` |
+| Focused SOCKS5 proxy-DNS reproduction | Passed; numeric mapped destination, original Host, proxy source address | `fixed-socks-reproduction.json` |
+| Direct browser matrix, socket process on/off | Passed, 33 checks each | `fixed-direct-on.json`, `fixed-direct-off.json` |
+| SOCKS4/5 × local/proxy DNS × socket process on/off | Passed, 8 cases, 35 checks each | `fixed-socks*-dns-*.json` |
+| SOCKS5 proxy DNS with IPv6 proxy listener and PAC selection | Passed, 2 cases, 35 checks each | `fixed-socks5-ipv6.json`, `fixed-socks5-pac.json` |
+| DNS regression | Passed, 29 subtests | `fixed-native-dns.log` |
+| Immutable TLS snapshot/session-key GTests | Passed, 2 tests | `fixed-native-snapshot.log` |
+| Existing TLS session-resumption regression | Passed, 154 subtests | `fixed-native-session.log` |
+| Existing private-browsing session-cache regression | Passed, 17 subtests | `fixed-native-pbm.log` |
+| Native formatting | Passed, zero findings | `clang-format-hsts.log` |
+
+All 416 browser assertions passed. Each report records the actual proxy
+partitioning preference as false, `acceptInsecureCerts=false`, and the requested
+socket-process mode. Successful mapped requests reached `127.0.0.2` through a
+proxy forwarding from `127.0.0.3`, with numeric SOCKS destination requests.
+Mapped hostname-resolution requests are rejected by the assertion while the
+mapping is active. Stopping the proxy must fail the request without a direct
+endpoint connection. HTTP/HTTPS/H2, WS/WSS, identity, cookies, CORS, strict and
+insecure TLS, learned HSTS rejection, session resumption, mapping edits,
+HTTP-proxy rejection and the indicator checks remain in the matrix.
+
+`baseline-provenance.json`, `browser-matrix-summary.json` and
+`native-tests-summary.json` retain the source baseline, implementation/fixture
+hashes and command results. Initial failing matrix evidence is retained under
+`initial-socks-matrix/`; the partition-enabled diagnostic is not acceptance
+proof. The PR and portable bundle manifest identify the delivered source
+revision. Reproduction commands are in `cambrian/tests/README.md`.
+
+The portable package's fixture list now includes `socks_proxy.py` alongside the
+browser harness and Node server, so the bundled tests retain their dependency.
+Optional Human/owner verification remains a GUI check with an isolated profile;
+no human interaction is required for integration after the automated checks.
+
+The audit also confirmed and separately filed
+[malformed-list DNS fallback (#4)](https://github.com/oscmp-cambrian/cambrian-firefox/issues/4)
+and [DNS preprocessing precedence (#5)](https://github.com/oscmp-cambrian/cambrian-firefox/issues/5).
+Their implementations are intentionally unchanged by the SOCKS fix.
