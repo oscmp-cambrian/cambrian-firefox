@@ -4,7 +4,9 @@
 
 Create two **Pipeline from SCM** jobs for
 `https://github.com/oscmp-cambrian/cambrian-firefox.git`, selecting the reviewed
-branch. Use `Jenkinsfile.build-image` for the image producer and `Jenkinsfile` for
+branch. **Disable lightweight checkout**: Jenkins Git lightweight retrieval
+can fetch the full upstream history despite shallow-clone options. Use
+`Jenkinsfile.build-image` for the image producer and `Jenkinsfile` for
 the browser. Configure Git shallow clone depth 1 and a 60-minute clone timeout:
 Firefox is a large repository. Use the existing GitHub read credential, not a
 new credential invented by this project. Pipeline scripts remain sandboxed.

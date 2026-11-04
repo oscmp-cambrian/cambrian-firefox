@@ -61,7 +61,8 @@ def run(String kind) {
            "IMAGE_TAG=linux-x86_64-${revision}-${env.BUILD_NUMBER}"]) {
     try {
       timeout(time: 6, unit: 'HOURS') {
-        sh 'rm -rf artifacts; mkdir -p artifacts'
+        sh '''rm -rf artifacts
+mkdir -p artifacts'''
         if (imageJob) {
           if (value('BUILD_IMAGE_ENABLED', 'true') != 'true') {
             echo 'Builder creation disabled; nothing will be published.'
