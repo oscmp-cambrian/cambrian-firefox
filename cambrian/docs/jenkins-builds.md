@@ -14,8 +14,10 @@ new credential invented by this project. Pipeline scripts remain sandboxed.
 The existing `docker-build-agent` needs Bash, Git, Docker CLI and its configured
 Docker daemon. The controller performs no native builds. Docker must support
 Linux amd64 containers and have verified HTTPS access to Harbor. No daemon socket
-is mounted into the compiler container. Source/Git metadata and artifacts travel
-through `docker cp`, including when Docker is remote. The compiler runs as the
+is mounted into the compiler container. A shallow, credential-free Git copy and artifacts travel through `docker cp`,
+including when Docker is remote. The compiler container checks out that exact
+commit to populate both source files and the Git index; it does not depend on
+worktree links or an archive paired with an empty index. The compiler runs as the
 image's unprivileged `builder` user; a short root `chown` prepares copied source.
 
 Use trusted owner-controlled source jobs. Do not expose Harbor credentials or

@@ -24,7 +24,7 @@ git -C "$scratch/git" remote remove origin
 container=$(docker create --init --shm-size=1g \
   -e BUILDER_IMAGE -e BUILD_URL -e BUILD_JOBS "$BUILDER_IMAGE")
 docker cp "$scratch/git/.git" "$container:/build/source/.git"
-git archive HEAD | docker cp - "$container:/build/source"
 docker start "$container" >/dev/null
 docker exec --user root "$container" chown -R builder:builder /build/source
+docker exec "$container" git reset --hard HEAD
 docker exec "$container" bash cambrian/ci/build-firefox.sh 2>&1 | tee artifacts/build.log
