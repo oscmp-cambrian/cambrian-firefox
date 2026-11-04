@@ -7,7 +7,7 @@ from pathlib import Path
 
 INPUTS = (
     "python/mozboot", "python/mach", "python/mozbuild", "taskcluster",
-    "build/moz.configure", "build/mach_virtualenv_packages.txt", "moz.configure",
+    "build/moz.configure", "python/sites", "third_party/python", "moz.configure",
     "cambrian/ci/Dockerfile", "cambrian/ci/install-toolchains.sh",
     "cambrian/ci/mozconfig", "cambrian/ci/toolchain-manifest.py",
 )

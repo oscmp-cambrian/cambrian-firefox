@@ -93,7 +93,7 @@ build dependencies before publishing. The final image excludes the bootstrap
 source checkout and native object tree. It retains toolchain state/virtualenvs.
 
 The compatibility manifest hashes bootstrap, Mach/mozbuild, taskcluster,
-configure inputs and the CI image definition. Ordinary browser C++/JS edits reuse
+configure inputs, Python site/dependency definitions and the CI image definition. Ordinary browser C++/JS edits reuse
 the image. A matching source location `/build/source` preserves warmed Mach
 virtualenv paths. A change to those inputs stops compilation with instructions
 to publish a new builder. Rebuild periodically for OS/toolchain security updates,
