@@ -80,6 +80,16 @@ artifact. Packaging records the exact source revision, native package hash,
 object directory, actual compiler configuration, platform, and the used
 mozconfig in `manifest.json`.
 
+## Jenkins and the reusable Docker builder
+
+[Jenkins build instructions](docs/jenkins-builds.md) describe two independent
+jobs: `Jenkinsfile.build-image` publishes the toolchain image to Harbor, and
+`Jenkinsfile` pulls its immutable digest to compile, test and archive Firefox.
+The image includes Ubuntu build/runtime dependencies, Rust and Mozilla's
+bootstrapped toolchains. Browser jobs do not rebuild that image. Both jobs run
+on the existing `docker-build-agent`; no Firefox dependencies are installed on
+the worker. The initial implementation supports Linux x86_64 only.
+
 ## Verification handoff
 
 Automated wrapper tests can run without compiling Firefox:
@@ -91,3 +101,10 @@ then inspect the screenshot and exit status. GUI execution is optional and
 requires a desktop session; native Linux GTK and related shared libraries are
 required because the archive is not fully static. No CI or build result is
 implied by this source document.
+
+## Maintaining this fork
+
+Every implementation change must update this README and the relevant documents
+under `cambrian/docs/`, including behavior, limitations and validation. Test changes
+must also update `cambrian/tests/README.md`. See the standing instructions in the
+repository's `AGENTS.md` and the [implementation map](docs/fork-changes.md).
