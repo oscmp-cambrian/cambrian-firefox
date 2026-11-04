@@ -21,8 +21,8 @@ image's unprivileged `builder` user; a short root `chown` prepares copied source
 Use trusted owner-controlled source jobs. Do not expose Harbor credentials or
 this Docker-capable worker to untrusted/fork Jenkinsfiles. Change-request jobs
 and automatic branch indexing do not publish or compile; reviewed builds must
-be manually started. The first run registers parameters and exits if they were
-not available when it was queued. No shared-library pin, Dokku deployment,
+be manually started. Build #1 always registers parameters and exits, including when job parameters
+were provisioned beforehand. Publication requires a subsequent manual build. No shared-library pin, Dokku deployment,
 production bootstrap, or new registry scanning policy is introduced.
 
 Allow several GB for the builder, plus source, Git checkout, temporary source

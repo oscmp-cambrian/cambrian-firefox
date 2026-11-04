@@ -37,7 +37,7 @@ def run(String kind) {
     echo 'Parameters registered. Start this expensive native build manually with the reviewed settings.'
     return
   }
-  if (!params.containsKey(imageJob ? 'BUILD_IMAGE_ENABLED' : 'BUILDER_IMAGE_DIGEST')) {
+  if (env.BUILD_NUMBER == '1' || !params.containsKey(imageJob ? 'BUILD_IMAGE_ENABLED' : 'BUILDER_IMAGE_DIGEST')) {
     echo 'Parameters registered. Use Build with Parameters to select the reviewed settings.'
     return
   }
