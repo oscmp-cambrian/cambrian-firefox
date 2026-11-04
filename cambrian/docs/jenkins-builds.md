@@ -28,8 +28,9 @@ were provisioned beforehand. Publication requires a subsequent manual build. No 
 production bootstrap, or new registry scanning policy is introduced.
 
 Allow several GB for the builder, plus source, Git checkout, temporary source
-transfer and native object output. Plan at least 60 GB free and a worker with
-4 CPUs and adequate RAM/swap; tune `BUILD_JOBS` for the host. Builds can take over
+transfer and native object output. For the first setup of both jobs, budget 80–100 GB free across the controller,
+worker, Docker build cache and registry; fewer files are needed on subsequent
+browser-only runs. Use a worker with 4 CPUs and adequate RAM/swap; tune `BUILD_JOBS` for the host. Builds can take over
 an hour. The six-hour timeout includes compilation and tests. The compiler
 container and its source/object data are removed on completion/failure; no
 unrelated images, volumes, databases or workspaces are pruned. Jenkins keeps
@@ -55,11 +56,13 @@ IDs are required.** Parameters use the Cambrian registry defaults:
 
 Registry/repository, credential selectors and the digest can also have explicit
 job environment defaults; build parameters take precedence. Environment defaults
-must be configured in Jenkins, not merely exported in an operator shell. A
-standalone job's parameter form is refreshed from these source/job defaults on
-every run; select the desired digest on each build unless a job environment
-default is configured. This native job does not use the web consumers' shared
-library or its multibranch-params integration.
+must be configured in Jenkins, not merely exported in an operator shell. Jenkins exposes queued parameters in the build environment, so standalone jobs
+carry their selected registry, repository, credential IDs and digest forward
+when the form is refreshed. Build toggles and parallelism return to their source
+defaults. Inspect the form and effective values after job recreation or a source
+change; explicitly supply all lab overrides when qualifying a new job. This
+native job does not use the web consumers' shared library or its
+multibranch-params integration.
 
 For lab validation, preconfigure/pass `CONTAINER_REGISTRY=registry.cambrian.test`,
 `CONTAINER_REPOSITORY=cambrian/cambrian-firefox-builder`, and credential selectors
