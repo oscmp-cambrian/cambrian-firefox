@@ -45,7 +45,7 @@ and the normal/insecure/ordinary toolbar indicators are also checked.
 ## Container and Jenkins build checks
 
 Run `python3 cambrian/tests/test_ci.py` for builder compatibility checks and
-`bash -n cambrian/ci/*.sh` for shell parsing. The actual Jenkins jobs must also be
+`bash -n` on each file in `cambrian/ci/*.sh` for shell parsing. The actual Jenkins jobs must also be
 exercised: publish the builder to a lab registry, copy its digest into the Firefox
 job, and verify native tests, packaged-browser reports, archive and checksum.
 See [Jenkins build validation](../docs/jenkins-builds.md). Source changes outside
