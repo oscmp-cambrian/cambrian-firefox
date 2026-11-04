@@ -124,8 +124,14 @@ must preserve available logs and remove only the task's compiler container and
 temporary Git metadata. GUI use on a desktop is optional; production Harbor
 publication is an owner action after review, not a prerequisite for lab acceptance.
 
-## Current validation
+## Validation records
 
-Implementation validation is in progress. Do not treat this document as a
-successful Jenkins delivery record until exact build evidence is recorded here
-and in the PR.
+[PR #7](https://github.com/oscmp-cambrian/cambrian-firefox/pull/7) records the
+implementation's current verification status and exact Jenkins/source/image
+results. Required checks remain outstanding until their successful evidence is
+recorded there. Future changes require fresh evidence using the steps above.
+
+The builder's source revision can differ from the browser's source revision:
+compatibility is determined by the recorded toolchain inputs, while each artifact
+records both revisions/digests. This allows browser and documentation changes to
+reuse a validated image without hiding which source produced either artifact.
